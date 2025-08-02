@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String     @db.VarChar(255)
+  email        String     @unique @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  role         UserRole   @default(END_USER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  createdTickets    Ticket[] @relation("TicketCreator")
+  assignedTickets   Ticket[] @relation("TicketAssignee")
+  comments         Comment[]
+  attachments      Attachment[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String       @unique @db.VarChar(255)
+  description String?    @db.Text
+  status    CategoryStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  tickets Ticket[]
+
+  @@map("categories")
+}
+
+model Ticket {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subject       String       @db.VarChar(255)
+  description   String       @db.Text
+  status        TicketStatus @default(OPEN)
+  priority      Priority     @default(MEDIUM)
+  categoryId    String?      @map("category_id") @db.Uuid
+  creatorId     String       @map("creator_id") @db.Uuid
+  assignedToId  String?      @map("assigned_to_id") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  category     Category? @relation(fields: [categoryId], references: [id])
+  creator      User      @relation("TicketCreator", fields: [creatorId], references: [id])
+  assignedTo  User?     @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  comments    Comment[]
+  attachments Attachment[]
+
+  @@map("tickets")
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("comments")
+}
+
+model Attachment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  filename  String   @db.VarChar(255)
+  originalName String @map("original_name") @db.VarChar(255)
+  mimeType  String   @map("mime_type") @db.VarChar(100)
+  size      Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("attachments")
+}
+
+enum UserRole {
+  END_USER
+  AGENT
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+} 
